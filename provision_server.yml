@@ -3,23 +3,21 @@
   register: apt_sources_list
 - name: update apt cache
   apt: update_cache=yes
-  when: apt_sources_list|changed
 - name: install required packages
-  apt: name={{ item }} state=latest
-  with_items:
+  apt:
+    name:
     - dnsmasq
     - nginx-light
     - pxelinux
     # this package has modules necessary for pxelinux to boot
     - syslinux-common
     - rsync
-- name: install some packages for convenient work
-  apt: name={{ item }} state=latest
-  with_items:
     - bash-completion
     - tmux
     - mc
     - vim-tiny
+    state: latest
+    autoclean: yes 
 - name: install dnsmasq configs
   template: src=server/dnsmasq/dnsmasq.conf dest=/etc/dnsmasq.conf mode=0644
   notify: restart dnsmasq
