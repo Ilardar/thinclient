@@ -24,17 +24,12 @@
   register: apt_sources_list
 - name: update apt cache
   apt: update_cache=yes
-  when: apt_sources_list|changed
 - name: disable apt periodic update
   template: src=template/{{ item }} dest=/etc/{{ item }}
   with_items: [ apt/apt.conf.d/10periodic ]
 # Apparmor profiles do not work with custom mounting scheme for rootfs
 - name: remove apparmor
   apt: name=apparmor state=absent purge=yes
-- name: remove unnecessary packages
-  apt: name={{ item }} state=absent purge=yes
-  with_items:
-    - "{{ packages_to_remove }}"
 - name: remove dependencies that are no longer required
   apt:
     autoremove: yes
@@ -42,8 +37,8 @@
   lineinfile: path=/etc/ssh/sshd_config regexp='^PasswordAuthentication' line='PasswordAuthentication no'
   notify: reload sshd
 - name: install required packages
-  apt: name={{ item }} state=latest
-  with_items:
+  apt:
+    name:
     - initramfs-tools
     - squashfs-tools
     - aufs-tools
@@ -53,33 +48,10 @@
     # required for uvesafb framebuffer module
     # this package has built-in hooks for initramfs-tools
     - v86d
-- name: install general linux kernel packages
-  apt: pkg={{ item }} state=latest
-  with_items:
-    - linux-image-generic-hwe-16.04-edge
+    #- linux-image-generic-hwe-18.04-edge
     - linux-firmware
-- name: remove virtual linux kernel packages and headers
-  apt: pkg={{ item }} state=absent
-  with_items:
-    - linux-image-virtual
-    - linux-headers-virtual
-    - linux-headers-generic
-- name: remove old linux kernel and header packages
-  shell: |
-    apt-cache depends linux-image-virtual | tr -s ' ' | grep '^ Depends:' | cut -d' ' -f3 | while read pkg; do
-      if dpkg -l | grep ^ii | grep -q $pkg; then
-          apt-get -y --force-yes --purge remove $pkg
-      fi
-    done
-    apt-cache depends linux-headers-generic | tr -s ' ' | grep '^ Depends:' | cut -d' ' -f3 | while read pkg; do
-      if dpkg -l | grep ^ii | grep -q $pkg; then
-          apt-get -y --force-yes --purge remove $pkg
-      fi
-    done
-  args:
-    executable: /bin/bash
-  register: apt_result
-  changed_when: apt_result.stdout != ''
+    state: latest
+    autoclean: yes 
 - name: install initramfs hook script and config
   copy: src=template/{{ item }} dest=/etc/{{ item }} mode=0755
   with_items:
